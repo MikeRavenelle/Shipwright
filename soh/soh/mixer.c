@@ -107,7 +107,6 @@ void aLoadBufferImpl(const void* source_addr, uint16_t dest_addr, uint16_t nbyte
 #endif
 }
 
-#ifndef __TVOS__
 #include <opusfile.h>
 
 // The decoder is cached on the note, so remember which buffer it was opened for.
@@ -157,16 +156,6 @@ void aOPUSFree(struct OpusDecState* dec) {
     op_free(dec->file);
     free(dec);
 }
-#else
-void aOPUSdecImpl(void* source_addr, uint16_t dest_addr, uint16_t nbytes, struct OpusDecState** decState, int32_t pos,
-                  uint32_t size) {
-    (void)source_addr; (void)dest_addr; (void)nbytes; (void)decState; (void)pos; (void)size;
-}
-
-void aOPUSFree(struct OpusDecState* dec) {
-    (void)dec;
-}
-#endif
 
 void aSaveBufferImpl(uint16_t source_addr, int16_t* dest_addr, uint16_t nbytes) {
     memcpy(dest_addr, BUF_S16(source_addr), ROUND_DOWN_16(nbytes));

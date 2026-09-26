@@ -19,6 +19,10 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+echo "==> Generating soh.o2r with the host asset tools"
+cmake -S "${REPO_ROOT}" -B "${REPO_ROOT}/build-tools" -DSOH_TOOLS_ONLY=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build "${REPO_ROOT}/build-tools" --target GenerateSohOtr
+
 echo "==> Configuring tvOS build in ${BUILD_DIR}"
 echo "    Bundle ID : ${BUNDLE_ID}"
 echo "    Team      : ${DEVELOPMENT_TEAM:-<none – unsigned>}"

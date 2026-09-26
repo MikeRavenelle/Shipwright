@@ -803,10 +803,31 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "tvOS")
     target_include_directories(SDL2_net PUBLIC ${sdl2_net_SOURCE_DIR} ${CMAKE_BINARY_DIR}/sdl2_net_include)
     target_link_libraries(SDL2_net PUBLIC SDL2::SDL2)
 
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+    set(BUILD_TESTING OFF)
+    set(INSTALL_DOCS OFF)
+    set(OPUS_BUILD_PROGRAMS OFF)
+    set(OPUS_BUILD_TESTING OFF)
+    set(OP_DISABLE_HTTP ON)
+    set(OP_DISABLE_EXAMPLES ON)
+    set(OP_DISABLE_DOCS ON)
+    FetchContent_Declare(ogg GIT_REPOSITORY https://github.com/xiph/ogg.git GIT_TAG v1.3.5 OVERRIDE_FIND_PACKAGE)
+    FetchContent_Declare(opus GIT_REPOSITORY https://github.com/xiph/opus.git GIT_TAG v1.5.2 OVERRIDE_FIND_PACKAGE)
+    FetchContent_Declare(vorbis GIT_REPOSITORY https://github.com/xiph/vorbis.git GIT_TAG v1.3.7)
+    FetchContent_Declare(opusfile GIT_REPOSITORY https://github.com/xiph/opusfile.git GIT_TAG 3ecc22aa0a4430f61c2403d57370a089536d197a)
+    FetchContent_MakeAvailable(ogg opus)
+    FetchContent_MakeAvailable(vorbis opusfile)
+    unset(CMAKE_POLICY_VERSION_MINIMUM)
+
     set(ADDITIONAL_LIBRARY_DEPENDENCIES
         "libultraship;"
         SDL2::SDL2
         SDL2_net
+        Ogg::ogg
+        vorbis
+        vorbisfile
+        Opus::opus
+        OpusFile::opusfile
     )
 else()
     find_package(SDL2)

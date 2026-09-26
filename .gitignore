@@ -465,3 +465,4 @@ soh/properties.h
 # Runtime / local build output
 mods/
 build-tvos/
+build-tools/

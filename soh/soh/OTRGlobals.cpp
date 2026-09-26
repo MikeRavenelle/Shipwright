@@ -803,9 +803,10 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
             const float H = io.DisplaySize.y;
             ImGui::SetNextWindowPos(ImVec2(0, 0));
             ImGui::SetNextWindowSize(ImVec2(W, H));
+            ImGui::SetNextWindowFocus();
             ImGui::Begin("##tvos_upload", nullptr,
                 ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
-                ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBringToFrontOnFocus);
+                ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings);
 
             ImGui::SetCursorPosY(H * 0.06f);
             ImGui::SetWindowFontScale(2.0f);

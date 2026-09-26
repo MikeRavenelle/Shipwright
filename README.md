@@ -10,13 +10,13 @@ This fork builds Ship of Harkinian as a native Apple TV app:
 
 * **Metal rendering.** libultraship's Metal backend is used; OpenGL is not available on tvOS.
 * **Wi-Fi asset upload.** tvOS apps can't open a file picker or run the ROM extractor. On first launch, the app starts a small HTTP server on your local network and shows its URL and a QR code on the TV. Open that page on a phone or computer and upload an `oot.o2r` / `oot-mq.o2r` you generated with a desktop build.
-* **Platform fixes.** CoreMotion and Opus are stubbed out, and writable data goes in the app's Caches directory. Those are the only sandbox locations tvOS lets the app write to.
+* **Platform fixes.** CoreMotion is stubbed out, the audio codecs (Ogg, Vorbis, Opus) and SDL_net are built from source for tvOS, and the app adopts the UIScene lifecycle required by the tvOS 27 SDK. Writable data goes in the app's Caches directory, the only sandbox location tvOS lets the app write to.
 
 The tvOS changes span this repo and the `libultraship` submodule, so clone recursively.
 
 ### Building for tvOS
 
-Requirements: macOS with Xcode (tvOS SDK; the app targets tvOS 15.0+), CMake, and an `soh.o2r` from a native macOS build (see [BUILDING.md](docs/BUILDING.md)).
+Requirements: macOS with Xcode (tvOS SDK; the app targets tvOS 15.0+) and CMake. The build script generates `soh.o2r` automatically with the host asset tools.
 
 ```bash
 git clone --recursive <this-fork-url>
