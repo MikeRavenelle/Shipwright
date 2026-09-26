@@ -17,7 +17,7 @@ set (BUILD_SHARED_LIBS OFF CACHE STRING "install/link shared instead of static l
 
 if (CMAKE_SYSTEM_NAME STREQUAL "tvOS")
     option(SIGN_APP "Enable Xcode signing for the app" OFF)
-    set(BUNDLE_ID "com.harbourmasters.soh" CACHE STRING "Bundle identifier for tvOS app")
+    set(BUNDLE_ID "com.mikeravenelle.harbourmasters.soh" CACHE STRING "Bundle identifier for tvOS app")
     set(DEVELOPMENT_TEAM "" CACHE STRING "Xcode development team ID for signing")
 endif()
 
@@ -269,7 +269,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "tvOS")
         MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/tvos/Info.plist.in"
         XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "3"
-        XCODE_ATTRIBUTE_TVOS_DEPLOYMENT_TARGET "14.0"
+        XCODE_ATTRIBUTE_TVOS_DEPLOYMENT_TARGET "15.0"
         XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES
         XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${BUNDLE_ID}"
         OUTPUT_NAME "ShipOfHarkinian"

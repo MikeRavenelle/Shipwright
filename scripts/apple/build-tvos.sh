@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 BUILD_DIR="${REPO_ROOT}/build-tvos"
-BUNDLE_ID="com.harbourmasters.soh"
+BUNDLE_ID="com.mikeravenelle.harbourmasters.soh"
 DEVELOPMENT_TEAM=""
 BUILD_TYPE="Debug"
 
@@ -29,7 +29,8 @@ cmake \
     -B "${BUILD_DIR}" \
     -G Xcode \
     -DCMAKE_SYSTEM_NAME=tvOS \
-    -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+    -DDEPLOYMENT_TARGET=15.0 \
     -DBUNDLE_ID="${BUNDLE_ID}" \
     -DDEVELOPMENT_TEAM="${DEVELOPMENT_TEAM}" \
     -DSIGN_LIBRARY=OFF \
