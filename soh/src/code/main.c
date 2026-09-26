@@ -44,8 +44,9 @@ void Main_LogSystemHeap(void) {
     osSyncPrintf(VT_RST);
 }
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__IOS__) || defined(__TVOS__)
 int SDL_main(int argc, char* argv[]) {
+#ifdef _WIN32
     AllocConsole();
     (void)freopen("CONIN$", "r", stdin);
     (void)freopen("CONOUT$", "w", stdout);
@@ -55,8 +56,9 @@ int SDL_main(int argc, char* argv[]) {
 #endif
     // Allow non-ascii characters for Windows
     setlocale(LC_ALL, ".UTF8");
+#endif // _WIN32
 
-#else //_WIN32
+#else // !_WIN32 && !__IOS__ && !__TVOS__
 int main(int argc, char* argv[]) {
 #endif
     GameConsole_Init();

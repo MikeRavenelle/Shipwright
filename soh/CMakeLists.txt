@@ -6,7 +6,7 @@ project(soh LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20 CACHE STRING "The C++ standard to use")
 set(CMAKE_C_STANDARD 23 CACHE STRING "The C standard to use")
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+if (CMAKE_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_SYSTEM_NAME STREQUAL "iOS" OR CMAKE_SYSTEM_NAME STREQUAL "tvOS")
     enable_language(OBJCXX)
     set(CMAKE_OBJC_FLAGS "${CMAKE_OBJC_FLAGS} -fobjc-arc")
     set(CMAKE_OBJCXX_FLAGS "${CMAKE_OBJCXX_FLAGS} -fobjc-arc")
@@ -14,6 +14,12 @@ endif()
 
 set (BUILD_UTILS OFF CACHE STRING "no utilities")
 set (BUILD_SHARED_LIBS OFF CACHE STRING "install/link shared instead of static libs")
+
+if (CMAKE_SYSTEM_NAME STREQUAL "tvOS")
+    option(SIGN_APP "Enable Xcode signing for the app" OFF)
+    set(BUNDLE_ID "com.harbourmasters.soh" CACHE STRING "Bundle identifier for tvOS app")
+    set(DEVELOPMENT_TEAM "" CACHE STRING "Xcode development team ID for signing")
+endif()
 
 ################################################################################
 # Set target arch type if empty. Visual studio solution generator provides it.
@@ -93,7 +99,7 @@ if (NOT TARGET libultraship)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../libultraship ${CMAKE_BINARY_DIR}/libultraship)
 endif()
 
-if (NOT TARGET ZAPDLib)
+if (NOT TARGET ZAPDLib AND NOT CMAKE_SYSTEM_NAME STREQUAL "tvOS")
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
 endif()
 
@@ -164,12 +170,21 @@ endif()
 # soh/Extractor {{{
 list(FILTER ship__ EXCLUDE REGEX "soh/Extractor/*")
 
-if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS|tvOS")
     file(GLOB_RECURSE soh__Extractor RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
         "soh/Extractor/*.c"
         "soh/Extractor/*.cpp"
         "soh/Extractor/*.h"
         "soh/Extractor/*.hpp"
+    )
+elseif(CMAKE_SYSTEM_NAME STREQUAL "tvOS")
+    file(GLOB_RECURSE soh__Extractor RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+        "soh/Extractor/TvOSFileUploadServer.h"
+        "soh/Extractor/TvOSFileUploadServer.cpp"
+        "soh/Extractor/TvOSFileHelper.h"
+        "soh/Extractor/TvOSFileHelper.mm"
+        "soh/Extractor/TvOSQRCode.h"
+        "soh/Extractor/*.h"
     )
 else()
     file(GLOB_RECURSE soh__Extractor RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
@@ -249,6 +264,35 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES
         OUTPUT_NAME "soh-macos"
     )
+elseif(CMAKE_SYSTEM_NAME STREQUAL "tvOS")
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/tvos/Info.plist.in"
+        XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "3"
+        XCODE_ATTRIBUTE_TVOS_DEPLOYMENT_TARGET "14.0"
+        XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES
+        XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${BUNDLE_ID}"
+        OUTPUT_NAME "ShipOfHarkinian"
+    )
+    set(SOH_O2R_BUNDLE "${CMAKE_CURRENT_BINARY_DIR}/soh.o2r")
+    set_source_files_properties("${SOH_O2R_BUNDLE}" PROPERTIES
+        GENERATED TRUE
+        MACOSX_PACKAGE_LOCATION "."
+    )
+    target_sources(${PROJECT_NAME} PRIVATE "${SOH_O2R_BUNDLE}")
+    if(DEVELOPMENT_TEAM)
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "${DEVELOPMENT_TEAM}"
+            XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Apple Development"
+            XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic"
+        )
+    else()
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Apple Development"
+            XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic"
+            XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "YES"
+        )
+    endif()
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set_target_properties(${PROJECT_NAME} PROPERTIES
     OUTPUT_NAME "soh.elf"
@@ -384,6 +428,15 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
         "SPDLOG_NO_THREAD_ID;"
         "SPDLOG_NO_TLS;"
         "STBI_NO_THREAD_LOCALS;"
+        SPDLOG_ACTIVE_LEVEL=${SPDLOG_MIN_CUTOFF}
+        LOG_LEVEL_GAME_PRINTS=${SPDLOG_LEVEL_OFF}
+    )
+elseif (CMAKE_SYSTEM_NAME STREQUAL "tvOS")
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+        "$<$<CONFIG:Debug>:_DEBUG;>"
+        "$<$<CONFIG:Release>:NDEBUG;>"
+        "F3DEX_GBI_2;"
+        "__TVOS__;"
         SPDLOG_ACTIVE_LEVEL=${SPDLOG_MIN_CUTOFF}
         LOG_LEVEL_GAME_PRINTS=${SPDLOG_LEVEL_OFF}
     )
@@ -556,6 +609,29 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
                 -Wno-stringop-overflow
             >
         )
+    elseif (CMAKE_SYSTEM_NAME STREQUAL "tvOS")
+        target_compile_options(${PROJECT_NAME} PRIVATE
+            -Wall -Wextra -Wno-error
+            -Wformat-security
+            -Wno-return-type
+            -Wno-unused-parameter
+            -Wno-unused-function
+            -Wno-unused-variable
+            -Wno-missing-field-initializers
+            -Wno-parentheses
+            -Wno-narrowing
+            -Wno-missing-braces
+            $<$<COMPILE_LANGUAGE:C>:
+                -Werror-implicit-function-declaration
+                -Wno-incompatible-pointer-types
+                -Wno-int-conversion
+            >
+            $<$<COMPILE_LANGUAGE:CXX>:-fpermissive>
+            $<$<COMPILE_LANGUAGE:CXX>:
+                -Wno-c++11-narrowing
+                -Wno-deprecated-enum-enum-conversion
+            >
+        )
     else()
         if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
         set(CPU_OPTION -msse2 -mfpmath=sse)
@@ -601,7 +677,7 @@ if (CMAKE_GENERATOR MATCHES "Visual Studio")
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/soh/assets/xml ${CMAKE_BINARY_DIR}/soh/assets/xml
     )
 endif()
-if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS|tvOS")
     add_custom_command(
         TARGET ${PROJECT_NAME}
         POST_BUILD
@@ -618,7 +694,7 @@ endif()
 add_dependencies(${PROJECT_NAME}
     libultraship
 )
-if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS|tvOS")
 add_dependencies(${PROJECT_NAME}
     ZAPDLib
 )
@@ -690,10 +766,27 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
     target_include_directories(${PROJECT_NAME} PRIVATE
         ${DEVKITPRO}/portlibs/wiiu/include/
     )
-else()
+elseif(CMAKE_SYSTEM_NAME STREQUAL "tvOS")
     find_package(SDL2)
-    set(THREADS_PREFER_PTHREAD_FLAG ON)
-    find_package(Threads REQUIRED)
+
+    include(FetchContent)
+    FetchContent_Declare(
+        qrcodegen
+        GIT_REPOSITORY https://github.com/nayuki/QR-Code-generator.git
+        GIT_TAG        v1.8.0
+    )
+    FetchContent_GetProperties(qrcodegen)
+    if(NOT qrcodegen_POPULATED)
+        FetchContent_Populate(qrcodegen)
+    endif()
+    target_sources(${PROJECT_NAME} PRIVATE ${qrcodegen_SOURCE_DIR}/c/qrcodegen.c)
+    target_include_directories(${PROJECT_NAME} PRIVATE ${qrcodegen_SOURCE_DIR}/c)
+
+    set(ADDITIONAL_LIBRARY_DEPENDENCIES
+        "libultraship;"
+        SDL2::SDL2
+    )
+else()
     find_package(Ogg REQUIRED)
     find_package(Vorbis REQUIRED)
     find_package(Opus REQUIRED)
@@ -714,7 +807,7 @@ else()
     )
 endif()
 
-if(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin|NintendoSwitch|CafeOS")
+if(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin|NintendoSwitch|CafeOS|tvOS")
 INSTALL(TARGETS soh DESTINATION . COMPONENT ship)
 endif()
 

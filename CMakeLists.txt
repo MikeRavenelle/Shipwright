@@ -173,8 +173,10 @@ add_compile_definitions(CONTROLLERBUTTONS_T=uint32_t)
 add_subdirectory(libultraship ${CMAKE_BINARY_DIR}/libultraship)
 target_compile_options(libultraship PRIVATE "${WARNING_OVERRIDE}")
 target_compile_definitions(libultraship PUBLIC INCLUDE_MPQ_SUPPORT)
-add_subdirectory(ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
-add_subdirectory(OTRExporter)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "tvOS")
+    add_subdirectory(ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
+    add_subdirectory(OTRExporter)
+endif()
 add_subdirectory(soh)
 
 set_property(TARGET soh PROPERTY APPIMAGE_DESKTOP_FILE_TERMINAL YES)
@@ -195,6 +197,7 @@ endif()
 
 find_package(Python3 COMPONENTS Interpreter)
 
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "tvOS")
 # Target to generate OTRs
 add_custom_target(
     ExtractAssets
@@ -236,7 +239,20 @@ add_custom_target(
     COMMENT "Generating soh.o2r..."
     DEPENDS ZAPD
 )
+endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "tvOS")
+add_custom_target(
+    CopySohOtrForTvOS
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/soh"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/soh.o2r"
+        "${CMAKE_BINARY_DIR}/soh/soh.o2r"
+    COMMENT "Copying soh.o2r into tvOS build dir..."
+    BYPRODUCTS "${CMAKE_BINARY_DIR}/soh/soh.o2r"
+)
+add_dependencies(soh CopySohOtrForTvOS)
+endif()
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
     find_package(ImageMagick COMPONENTS convert)
     if (ImageMagick_FOUND)

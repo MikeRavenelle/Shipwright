@@ -104,6 +104,7 @@ void aLoadBufferImpl(const void* source_addr, uint16_t dest_addr, uint16_t nbyte
 #endif
 }
 
+#ifndef __TVOS__
 #include <opus/opus.h>
 #include <opusfile.h>
 
@@ -130,6 +131,16 @@ void aOPUSdecImpl(void* source_addr, uint16_t dest_addr, uint16_t nbytes, struct
 void aOPUSFree(struct OggOpusFile* opusFile) {
     op_free(opusFile);
 }
+#else
+void aOPUSdecImpl(void* source_addr, uint16_t dest_addr, uint16_t nbytes, struct OggOpusFile** decState, int32_t pos,
+                  uint32_t size) {
+    (void)source_addr; (void)dest_addr; (void)nbytes; (void)decState; (void)pos; (void)size;
+}
+
+void aOPUSFree(struct OggOpusFile* opusFile) {
+    (void)opusFile;
+}
+#endif
 
 void aSaveBufferImpl(uint16_t source_addr, int16_t* dest_addr, uint16_t nbytes) {
     memcpy(dest_addr, BUF_S16(source_addr), ROUND_DOWN_16(nbytes));

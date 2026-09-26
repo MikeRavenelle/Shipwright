@@ -1,6 +1,43 @@
 ![Ship of Harkinian](docs/shiptitle.darkmode.png#gh-dark-mode-only)
 ![Ship of Harkinian](docs/shiptitle.lightmode.png#gh-light-mode-only)
 
+> [!NOTE]
+> **This is an unofficial fork that adds Apple TV (tvOS) support.** It is not affiliated with or supported by HarbourMasters. For the official project, see [HarbourMasters/Shipwright](https://github.com/HarbourMasters/Shipwright). Please don't take tvOS issues to the official Discord.
+
+## tvOS Fork
+
+This fork builds Ship of Harkinian as a native Apple TV app:
+
+* **Metal rendering.** libultraship's Metal backend is used; OpenGL is not available on tvOS.
+* **Wi-Fi asset upload.** tvOS apps can't open a file picker or run the ROM extractor. On first launch, the app starts a small HTTP server on your local network and shows its URL and a QR code on the TV. Open that page on a phone or computer and upload an `oot.o2r` / `oot-mq.o2r` you generated with a desktop build.
+* **Platform fixes.** CoreMotion and Opus are stubbed out, and writable data goes in the app's Caches directory. Those are the only sandbox locations tvOS lets the app write to.
+
+The tvOS changes span this repo and the `libultraship` submodule, so clone recursively.
+
+### Building for tvOS
+
+Requirements: macOS with Xcode (tvOS SDK), CMake, and an `soh.o2r` from a native macOS build (see [BUILDING.md](docs/BUILDING.md)).
+
+```bash
+git clone --recursive <this-fork-url>
+cd Shipwright
+./scripts/apple/build-tvos.sh                                   # unsigned / simulator
+./scripts/apple/build-tvos.sh --team <TEAM_ID> --bundle-id <your.bundle.id>   # signed, for a device
+open build-tvos/Ship.xcodeproj
+```
+
+In Xcode, select the `soh` scheme and your Apple TV (or a simulator), then Run. Pass `--release` for a Release configuration.
+
+### Getting game assets onto the Apple TV
+
+1. Run a desktop build with your supported ROM to generate `oot.o2r` (and/or `oot-mq.o2r`).
+2. Launch the app on the Apple TV. It will show an upload URL and a QR code.
+3. On a device on the same network, open the URL and upload the `.o2r` file. The game starts after the upload completes.
+
+The upload server has no authentication and only runs until the assets are received, so use it on a trusted network. As with upstream, no copyrighted assets are included. You must provide your own legally obtained copy of the game.
+
+---
+
 ## Website
 
 Official Website: https://www.shipofharkinian.com/
@@ -32,6 +69,9 @@ You can verify you have dumped a supported copy of the game by using the compati
 #### macOS
 * Run `soh.app`. When prompted, select your supported copy of the game.
 * You should see a notification saying `Processing OTR`, then, once the process is complete, you should get a notification saying `OTR Successfully Generated`, then the game should start.
+
+#### Apple TV (tvOS, this fork only)
+* See [Getting game assets onto the Apple TV](#getting-game-assets-onto-the-apple-tv) above.
 
 #### Nintendo Switch
 * Run one of the PC releases to generate an `oot.o2r` and/or `oot-mq.o2r` file. After launching the game on PC, you will be able to find these files in the same directory as `soh.exe` or `soh.appimage`. On macOS, these files can be found in `/Users/<username>/Library/Application Support/com.shipofharkinian.soh/`

@@ -47,6 +47,11 @@
 #if not defined(__SWITCH__) && not defined(__WIIU__)
 #include "Extractor/Extract.h"
 #endif
+#ifdef __TVOS__
+#include "Extractor/TvOSFileUploadServer.h"
+#include "Extractor/TvOSQRCode.h"
+#include <imgui.h>
+#endif
 
 #include <fast/interpreter.h>
 
@@ -393,6 +398,11 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
     bool extractDone = false;
     ExtractSteps extractStep = ES_PORT_ARCHIVE;
     WindowsSteps windowsStep = WS_TEMP;
+#ifdef __TVOS__
+    static TvOSFileUploadServer* sSrvPtr = nullptr;
+    static TvOSQRCode* sQRPtr = nullptr;
+    static bool* sQREncodedPtr = nullptr;
+#endif
     auto wnd = std::dynamic_pointer_cast<Fast::Fast3dWindow>(OTRGlobals::Instance->context->GetWindow());
     auto gui = wnd->GetGui();
 
@@ -433,10 +443,14 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
 #endif
 
     if (!std::filesystem::exists(installPath + "/assets")) {
+#ifdef __TVOS__
+        (void)installPath;
+#else
         SohGui::RegisterPopup("Extractor assets not found",
                               "No O2R files found. Missing 'assets/' folder needed to generate OTR file.\nPlease "
                               "re-extract them from the download or.\n\nExiting...",
                               "OK", "", [&]() { exit(1); });
+#endif
     } else if (shouldRegen) {
         SohGui::RegisterPopup("Outdated ROM Archives",
                               "Your oot.o2r or oot-mq.o2r were created with incompatible versions of SoH.\nYou will "
@@ -563,7 +577,7 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
                 break;
             }
             case ES_EXTRACT_ARGS: {
-#if !defined(__SWITCH__) && !defined(__WIIU__)
+#if !defined(__SWITCH__) && !defined(__WIIU__) && !defined(__TVOS__)
                 if (args.size() == 0) {
                     SohGui::RegisterPopup(
                         "Run Ship of Harkinian", "All files have been processed. Run SoH?", "Yes", "No",
@@ -614,6 +628,42 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
                 break;
             }
             case ES_EXTRACT: {
+#ifdef __TVOS__
+                {
+                    static std::unique_ptr<TvOSFileUploadServer> sUploadSrv;
+                    static TvOSQRCode sQR;
+                    static bool sQREncoded = false;
+
+                    if (!sUploadSrv) {
+                        const bool ootO2RExists =
+                            std::filesystem::exists(
+                                Ship::Context::LocateFileAcrossAppDirs("oot-mq.o2r", appShortName)) ||
+                            std::filesystem::exists(Ship::Context::LocateFileAcrossAppDirs("oot.o2r", appShortName));
+                        if (ootO2RExists) {
+                            extractStep = ES_VERIFY;
+                            continue;
+                        }
+                        sUploadSrv = std::make_unique<TvOSFileUploadServer>(
+                            Ship::Context::GetAppDirectoryPath(appShortName));
+                        sUploadSrv->Start();
+                        sQREncoded = sQR.Encode(sUploadSrv->GetServerURL());
+                    }
+
+                    if (sUploadSrv->IsFileReceived()) {
+                        sUploadSrv->Stop();
+                        sUploadSrv.reset();
+                        extractStep = ES_VERIFY;
+                        continue;
+                    }
+
+                    sSrvPtr = sUploadSrv.get();
+                    sQRPtr = &sQR;
+                    sQREncodedPtr = &sQREncoded;
+                    goto render;
+                }
+                break;
+            }
+#else
                 switch (promptStep) {
                     case PS_FILE_CHECK: {
                         const bool ootO2RExists =
@@ -687,6 +737,7 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
                 }
                 break;
             }
+#endif
             case ES_VERIFY: {
                 const bool ootO2RExists =
                     std::filesystem::exists(Ship::Context::LocateFileAcrossAppDirs("oot-mq.o2r", appShortName)) ||
@@ -722,6 +773,68 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
         gui->StartDraw();
         sohFast3dWindow->StartFrame();
         sohFast3dWindow->RunGuiOnly();
+#ifdef __TVOS__
+        if (extractStep == ES_EXTRACT && sSrvPtr != nullptr) {
+            const ImGuiIO& io = ImGui::GetIO();
+            const float W = io.DisplaySize.x;
+            const float H = io.DisplaySize.y;
+            ImGui::SetNextWindowPos(ImVec2(0, 0));
+            ImGui::SetNextWindowSize(ImVec2(W, H));
+            ImGui::Begin("##tvos_upload", nullptr,
+                ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+                ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+            ImGui::SetCursorPosY(H * 0.06f);
+            ImGui::SetWindowFontScale(2.0f);
+            const char* title = "ROM Upload Required";
+            ImGui::SetCursorPosX((W - ImGui::CalcTextSize(title).x) * 0.5f);
+            ImGui::TextUnformatted(title);
+            ImGui::SetWindowFontScale(1.0f);
+            ImGui::Spacing();
+
+            const char* sub = "Open this URL on your computer or phone:";
+            ImGui::SetCursorPosX((W - ImGui::CalcTextSize(sub).x) * 0.5f);
+            ImGui::TextUnformatted(sub);
+            ImGui::Spacing();
+
+            const std::string& url = sSrvPtr->GetServerURL();
+            ImGui::SetWindowFontScale(1.6f);
+            ImGui::SetCursorPosX((W - ImGui::CalcTextSize(url.c_str()).x) * 0.5f);
+            ImGui::TextColored(ImVec4(0.97f, 0.79f, 0.28f, 1.0f), "%s", url.c_str());
+            ImGui::SetWindowFontScale(1.0f);
+            ImGui::Spacing();
+
+            if (sQREncodedPtr && *sQREncodedPtr && sQRPtr) {
+                const int qrSize = sQRPtr->Size();
+                const float cellPx = std::min(W, H) * 0.45f / static_cast<float>(qrSize);
+                const float qrPx = cellPx * qrSize;
+                const float qrX = (W - qrPx) * 0.5f;
+                const float qrY = ImGui::GetCursorScreenPos().y;
+                ImDrawList* dl = ImGui::GetWindowDrawList();
+                dl->AddRectFilled(ImVec2(qrX - cellPx * 4, qrY - cellPx * 4),
+                                  ImVec2(qrX + qrPx + cellPx * 4, qrY + qrPx + cellPx * 4),
+                                  IM_COL32_WHITE);
+                for (int y = 0; y < qrSize; ++y) {
+                    for (int x = 0; x < qrSize; ++x) {
+                        if (sQRPtr->Module(x, y)) {
+                            dl->AddRectFilled(
+                                ImVec2(qrX + x * cellPx, qrY + y * cellPx),
+                                ImVec2(qrX + (x + 1) * cellPx, qrY + (y + 1) * cellPx),
+                                IM_COL32_BLACK);
+                        }
+                    }
+                }
+                ImGui::Dummy(ImVec2(qrPx, qrPx + cellPx * 8));
+            }
+
+            ImGui::Spacing();
+            const char* hint = "Upload oot.o2r or oot-mq.o2r from the browser, then the game will start.";
+            ImGui::SetCursorPosX((W - ImGui::CalcTextSize(hint).x) * 0.5f);
+            ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "%s", hint);
+
+            ImGui::End();
+        }
+#endif
         if (extractionTask.has_value()) {
             auto status = extractionTask->wait_for(std::chrono::milliseconds(0));
             if (status == std::future_status::ready) {
@@ -1484,7 +1597,7 @@ extern "C" void InitOTR(int argc, char* argv[]) {
 
     AudioCollection::Instance = new AudioCollection();
     ActorDB::Instance = new ActorDB();
-#ifdef __APPLE__
+#if defined(__APPLE__) && !defined(__TVOS__) && !defined(__IOS__)
     SpeechSynthesizer::Instance = new DarwinSpeechSynthesizer();
 #elif defined(_WIN32)
     SpeechSynthesizer::Instance = new SAPISpeechSynthesizer();

@@ -16,11 +16,14 @@
 #define DR_FLAC_IMPLEMENTATION
 #include <dr_flac.h>
 
+#ifndef __TVOS__
 #include <ogg/ogg.h>
 #include <vorbis/codec.h>
 #include "vorbis/vorbisfile.h"
+#endif
 #include <tinyxml2.h>
 
+#ifndef __TVOS__
 struct OggFileData {
     void* data;
     size_t pos;
@@ -116,6 +119,7 @@ static OggType GetOggType(OggFileData* data) {
     ogg_sync_clear(&oy);
     return type;
 }
+#endif
 
 static void Mp3DecoderWorker(std::shared_ptr<SOH::AudioSample> audioSample, std::shared_ptr<Ship::File> sampleFile) {
     drmp3 mp3;
@@ -138,6 +142,7 @@ static void FlacDecoderWorker(std::shared_ptr<SOH::AudioSample> audioSample, std
     drflac_close(flac);
 }
 
+#ifndef __TVOS__
 static void OggDecoderWorker(std::shared_ptr<SOH::AudioSample> audioSample, std::shared_ptr<Ship::File> sampleFile,
                              std::shared_ptr<Ship::ResourceInitData> initData) {
     OggVorbis_File vf;
@@ -188,6 +193,7 @@ static void OggDecoderWorker(std::shared_ptr<SOH::AudioSample> audioSample, std:
         }
     }
 }
+#endif
 
 namespace SOH {
 std::shared_ptr<Ship::IResource>
@@ -313,10 +319,12 @@ ResourceFactoryXMLAudioSampleV0::ReadResource(std::shared_ptr<Ship::File> file,
             std::thread fileDecoderThread = std::thread(Mp3DecoderWorker, audioSample, sampleFile);
             fileDecoderThread.detach();
             return audioSample;
+#ifndef __TVOS__
         } else if (strcmp(customFormatStr, "ogg") == 0) {
             std::thread fileDecoderThread = std::thread(OggDecoderWorker, audioSample, sampleFile, initData);
             fileDecoderThread.detach();
             return audioSample;
+#endif
         } else if (strcmp(customFormatStr, "flac") == 0) {
             std::thread fileDecoderThread = std::thread(FlacDecoderWorker, audioSample, sampleFile);
             fileDecoderThread.detach();

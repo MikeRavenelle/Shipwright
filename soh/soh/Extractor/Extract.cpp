@@ -5,7 +5,9 @@
 #pragma comment(lib, "Shlwapi.lib")
 #endif
 #include "Extract.h"
+#ifndef __TVOS__
 #include "portable-file-dialogs.h"
+#endif
 #include <ship/utils/binarytools/BitConverter.h>
 #include "soh/ShipUtils.h"
 #include "variables.h"
@@ -317,7 +319,7 @@ bool Extractor::GetRomPathFromBox() {
         return false;
     }
     mCurrentRomPath = nameBuffer;
-#else
+#elif !defined(__TVOS__)
     auto selection = pfd::open_file("Select a file", mSearchPath, { "N64 Roms", "*.z64 *.n64 *.v64" }).result();
 
     if (selection.empty()) {
@@ -325,6 +327,8 @@ bool Extractor::GetRomPathFromBox() {
     }
 
     mCurrentRomPath = selection[0];
+#else
+    return false;
 #endif
     mCurRomSize = GetCurRomSize();
     return true;
@@ -635,11 +639,16 @@ std::string Extractor::Mkdtemp() {
     return tmppath;
 }
 
+#ifndef __TVOS__
 extern "C" int zapd_report(int argc, char** argv, std::atomic<size_t>* extractCount, std::atomic<size_t>* totalExtract);
+#endif
 static void MessageboxWorker();
 
 bool Extractor::CallZapd(std::string installPath, std::string exportdir, std::atomic<size_t>* extractCount,
                          std::atomic<size_t>* totalExtract) {
+#ifdef __TVOS__
+    return false;
+#else
     constexpr int argc = 22;
     char xmlPath[1024];
     char confPath[1024];
@@ -699,6 +708,8 @@ bool Extractor::CallZapd(std::string installPath, std::string exportdir, std::at
     std::filesystem::remove_all(tempdir);
 
     return false;
+}
+#endif
 }
 
 static void MessageboxWorker() {
