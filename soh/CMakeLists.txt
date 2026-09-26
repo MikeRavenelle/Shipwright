@@ -280,6 +280,12 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "tvOS")
         XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${BUNDLE_ID}"
         OUTPUT_NAME "ShipOfHarkinian"
     )
+    set(SOH_TVOS_ASSETS "${CMAKE_CURRENT_SOURCE_DIR}/tvos/Assets.xcassets")
+    target_sources(${PROJECT_NAME} PRIVATE "${SOH_TVOS_ASSETS}")
+    set_source_files_properties("${SOH_TVOS_ASSETS}" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "App Icon & Top Shelf Image"
+    )
     set(SOH_O2R_BUNDLE "${CMAKE_CURRENT_BINARY_DIR}/soh.o2r")
     set_source_files_properties("${SOH_O2R_BUNDLE}" PROPERTIES
         GENERATED TRUE

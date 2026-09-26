@@ -36,6 +36,34 @@ In Xcode, select the `soh` scheme and your Apple TV (or a simulator), then Run. 
 
 The upload server has no authentication and only runs until the assets are received, so use it on a trusted network. As with upstream, no copyrighted assets are included. You must provide your own legally obtained copy of the game.
 
+### tvOS status / TODO
+
+This port is a work in progress. Known gaps:
+
+**Not working / missing**
+- **Saves can be lost.** All app data (saves, settings, uploaded `.o2r` files) lives in `Library/Caches`, which tvOS may purge when storage runs low. Needs iCloud (CloudKit / key-value storage) or another persistent option.
+- **Simulator builds fail to link.** CMake picks up zlib/bzip2 from the device SDK, so only real Apple TV builds work.
+- **No way to add files after setup.** The upload server only runs when no `oot.o2r` / `oot-mq.o2r` is present, so you can't add Master Quest later, replace an archive, or add mods and custom music packs (which the audio codecs now support).
+- **Scripting (TCC mods) and text-to-speech** aren't available on tvOS.
+- **Gyro aiming** is unavailable; SDL's motion sensors are disabled in the tvOS build.
+
+**Upload server**
+- No authentication; anyone on the network can reach it while it runs.
+- Filenames must be exactly `oot.o2r` or `oot-mq.o2r`; renamed files are rejected.
+- The whole upload is held in memory (up to 512 MB, copied once more while parsing), which is heavy for Apple TV RAM.
+- A malformed `Content-Length` header crashes the app (`std::stoull` throws).
+- The destination directory passed to the server is ignored; it always writes to Caches.
+
+**Untested on device**
+- Custom/streamed music (Opus, Ogg Vorbis).
+- Siri Remote and controller navigation of the ImGui menus, including text entry.
+- Online features (Anchor, via SDL_net).
+- Release builds.
+
+**Future ideas**
+- Upload the ROM itself and extract on the Apple TV with Torch, instead of requiring a desktop-generated `oot.o2r`.
+- A tvOS build in CI.
+
 ---
 
 * [Website](https://www.shipofharkinian.com)

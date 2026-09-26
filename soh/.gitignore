@@ -47,6 +47,7 @@ graphs/
 
 # Assets
 *.png
+!tvos/Assets.xcassets/**/*.png
 *.jpg
 *.mdli
 *.anmi
