@@ -16,7 +16,7 @@ The tvOS changes span this repo and the `libultraship` submodule, so clone recur
 
 ### Building for tvOS
 
-Requirements: macOS with Xcode (tvOS SDK), CMake, and an `soh.o2r` from a native macOS build (see [BUILDING.md](docs/BUILDING.md)).
+Requirements: macOS with Xcode (tvOS SDK; the app targets tvOS 15.0+), CMake, and an `soh.o2r` from a native macOS build (see [BUILDING.md](docs/BUILDING.md)).
 
 ```bash
 git clone --recursive <this-fork-url>
@@ -38,13 +38,8 @@ The upload server has no authentication and only runs until the assets are recei
 
 ---
 
-## Website
-
-Official Website: https://www.shipofharkinian.com/
-
-## Discord
-
-Official Discord: https://discord.com/invite/shipofharkinian
+* [Website](https://www.shipofharkinian.com)
+* [Discord](https://discord.com/invite/harbourmasters)
 
 If you're having any trouble after reading through this `README`, feel free to ask for help in the Support text channels. Please keep in mind that we do not condone piracy.
 
@@ -106,13 +101,13 @@ Congratulations, you are now sailing with the Ship of Harkinian! Have fun!
 | F5 | Save state |
 | F6 | Change state |
 | F7 | Load state |
-| F9 | Toggle Text-to-Speech (Windows and Mac only) |
+| F9 | Toggle Text-to-Speech |
 | F11 | Fullscreen |
 | Tab | Toggle Alternate assets |
 | Ctrl+R | Reset |
 
 # Project Overview
-Ship of Harkinian (SOH) is built atop a custom library dubbed libultraship (LUS). Back in the N64 days, there was an SDK distributed to developers named libultra; LUS is designed to mimic the functionality of libultra on modern hardware. In addition, we are dependant on the source code provided by the OOT decompilation project.
+Ship of Harkinian (SOH) is built atop a custom library dubbed libultraship (LUS). Back in the N64 days, there was an SDK distributed to developers named libultra; LUS is designed to mimic the functionality of libultra on modern hardware. In addition, we are dependent on the source code provided by the OOT decompilation project.
 
 In order for the game to function, you will require a **legally acquired** ROM for Ocarina of Time. Click [here](https://ship.equipment/) to check the compatibility of your specific rom. Any copyrighted assets are extracted from the ROM and reformatted as a .o2r archive file which the code uses.
 
@@ -144,6 +139,7 @@ More detailed documentation can be found in the 'docs' directory, including the 
 
 * [Credits](docs/CREDITS.md)
 * [Custom Music](docs/CUSTOM_MUSIC.md)
+* [Formatting](docs/FORMATTING.md)
 * [Controller Mapping](docs/GAME_CONTROLLER_DB.md)
 * [Modding](docs/MODDING.md)
 * [Versioning](docs/VERSIONING.md)

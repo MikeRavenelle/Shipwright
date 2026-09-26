@@ -8,10 +8,9 @@
 #include "pool_functions.hpp"
 #include "soh/Enhancements/randomizer/randomizer_entrance_tracker.h"
 #include <nlohmann/json.hpp>
-#include <spdlog/fmt/fmt.h>
+#include <spdlog/spdlog.h>
 
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <map>
 #include <string>
@@ -23,7 +22,6 @@
 #include <variables.h>
 
 #include <ship/Context.h>
-#include <soh/OTRGlobals.h>
 
 #include <libultraship/bridge/consolevariablebridge.h>
 
@@ -90,8 +88,16 @@ static void WriteShuffledEntrance(std::string sphereString, Entrance* entrance) 
     int16_t destinationIndex = -1;
     int16_t replacementIndex = entrance->GetReplacement()->GetIndex();
     int16_t replacementDestinationIndex = -1;
-    std::string name = EntranceTracker::GetEntranceData(originalIndex)->source;
-    std::string text = EntranceTracker::GetEntranceData(replacementIndex)->destination;
+    const EntranceData* sourceData = EntranceTracker::GetEntranceData(originalIndex);
+    const EntranceData* destinationData = EntranceTracker::GetEntranceData(replacementIndex);
+    if (sourceData == nullptr || destinationData == nullptr) {
+        SPDLOG_ERROR("WriteShuffledEntrance: missing entrance data for index {} (override {})", originalIndex,
+                     replacementIndex);
+        assert(false);
+        return;
+    }
+    std::string name = sourceData->source;
+    std::string text = destinationData->destination;
 
     // Track the reverse destination, useful for savewarp handling
     if (entrance->GetReverse() != nullptr) {
@@ -140,7 +146,8 @@ static void WriteSettings() {
     auto ctx = Rando::Context::GetInstance();
     std::array<Rando::Option, RSK_MAX> options = Rando::Settings::GetInstance()->GetAllOptions();
     for (const Rando::Option& option : options) {
-        if (option.GetName() != "") {
+        // skip unassigned settings (RSK_NONE)
+        if (option.GetOptionCount() > 0) {
             jsonData["settings"][option.GetName()] = option.GetOptionText(ctx->GetOption(option.GetKey()).Get());
         }
     }
@@ -156,8 +163,8 @@ std::string RemoveLineBreaks(std::string s) {
 static void WriteExcludedLocations() {
     auto ctx = Rando::Context::GetInstance();
 
-    for (size_t i = 0; i < Rando::Settings::GetInstance()->GetExcludeLocationsOptions().size() - 1; i++) {
-        for (const auto& location : Rando::Settings::GetInstance()->GetExcludeLocationsOptions()[i]) {
+    for (const auto& areaOptions : Rando::Settings::GetInstance()->GetExcludeLocationsOptions()) {
+        for (const auto* location : areaOptions) {
             if (ctx->GetLocationOption(static_cast<RandomizerCheck>(location->GetKey())).Get() == RO_LOCATION_INCLUDE) {
                 continue;
             }
@@ -225,7 +232,7 @@ static void WritePlaythrough() {
     auto ctx = Rando::Context::GetInstance();
 
     for (size_t i = 0; i < ctx->playthroughLocations.size(); i++) {
-        std::string sphereString = fmt::format("sphere {:0>2}", i);
+        std::string sphereString = spdlog::fmt_lib::format("sphere {:0>2}", i);
         for (const RandomizerCheck key : ctx->playthroughLocations[i]) {
             if (!ctx->GetItemLocation(key)->IsHidden()) {
                 WriteLocation(sphereString, key, true);
@@ -238,7 +245,7 @@ static void WritePlaythrough() {
 static void WriteShuffledEntrances() {
     auto ctx = Rando::Context::GetInstance();
     for (size_t i = 0; i < ctx->GetEntranceShuffler()->playthroughEntrances.size(); i++) {
-        std::string sphereString = fmt::format("sphere {:0>2}", i);
+        std::string sphereString = spdlog::fmt_lib::format("sphere {:0>2}", i);
         for (Entrance* entrance : ctx->GetEntranceShuffler()->playthroughEntrances[i]) {
             WriteShuffledEntrance(sphereString, entrance);
         }
@@ -303,6 +310,9 @@ static void WriteAllLocations() {
                                             .GetEnglish();
                     jsonData["locations"][Rando::StaticData::GetLocation(location->GetRandomizerCheck())->GetName()]
                             ["trickName"] = ctx->overrides[location->GetRandomizerCheck()].GetTrickName().GetEnglish();
+                    jsonData["locations"][Rando::StaticData::GetLocation(location->GetRandomizerCheck())->GetName()]
+                            ["trickArticle"] =
+                                ctx->overrides[location->GetRandomizerCheck()].GetTrickArticle().GetEnglish();
                     break;
                 case 1:
                     jsonData["locations"][Rando::StaticData::GetLocation(location->GetRandomizerCheck())->GetName()]
@@ -312,6 +322,9 @@ static void WriteAllLocations() {
                                             .GetGerman();
                     jsonData["locations"][Rando::StaticData::GetLocation(location->GetRandomizerCheck())->GetName()]
                             ["trickName"] = ctx->overrides[location->GetRandomizerCheck()].GetTrickName().GetGerman();
+                    jsonData["locations"][Rando::StaticData::GetLocation(location->GetRandomizerCheck())->GetName()]
+                            ["trickArticle"] =
+                                ctx->overrides[location->GetRandomizerCheck()].GetTrickArticle().GetGerman();
                     break;
                 case 2:
                     jsonData["locations"][Rando::StaticData::GetLocation(location->GetRandomizerCheck())->GetName()]
@@ -321,6 +334,9 @@ static void WriteAllLocations() {
                                             .GetFrench();
                     jsonData["locations"][Rando::StaticData::GetLocation(location->GetRandomizerCheck())->GetName()]
                             ["trickName"] = ctx->overrides[location->GetRandomizerCheck()].GetTrickName().GetFrench();
+                    jsonData["locations"][Rando::StaticData::GetLocation(location->GetRandomizerCheck())->GetName()]
+                            ["trickArticle"] =
+                                ctx->overrides[location->GetRandomizerCheck()].GetTrickArticle().GetFrench();
                     break;
             }
         }

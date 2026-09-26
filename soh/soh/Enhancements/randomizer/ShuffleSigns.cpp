@@ -1,11 +1,17 @@
 #include <soh/OTRGlobals.h>
+#include <spdlog/spdlog.h>
+#include <libultraship/bridge/consolevariablebridge.h>
+#include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/ObjectExtension/ObjectExtension.h"
 #include "item_category_adj.h"
 #include "particle_cmc.h"
+#include "soh/Enhancements/randomizer/randomizer.h"
+#include "soh/Enhancements/randomizer/RCToRandInf.h"
+#include "soh/ShipInit.hpp"
+
 extern "C" {
 extern PlayState* gPlayState;
 #include "overlays/actors/ovl_En_Kanban/z_en_kanban.h"
-#include "objects/gameplay_keep/gameplay_keep.h"
 #include "overlays/actors/ovl_En_Wonder_Talk/z_en_wonder_talk.h"
 #include "overlays/actors/ovl_En_Wonder_Talk2/z_en_wonder_talk2.h"
 }
@@ -32,12 +38,9 @@ uint8_t Sign_RandomizerHoldsItem(Actor* actor, PlayState* play) {
 
 static void Sign_RandomizerDraw(Actor* actor, Color_RGBA8* primColor, Color_RGBA8* secColor, Color_RGBA8* envColor) {
     Vec3f pos;
-    static Vec3f velocity = { 0.0f, 0.0f, 0.0f };
-    static Vec3f accel = { 0.0f, 0.0f, 0.0f };
+    Vec3f velocity = { 0.0f, -0.05f, 0.0f };
+    Vec3f accel = { 0.0f, -0.025f, 0.0f };
     float yKanbanOffset = LINK_IS_CHILD && actor->id == ACTOR_EN_KANBAN ? 15.0f : 0.0f;
-
-    velocity.y = -0.05f;
-    accel.y = -0.025f;
 
     pos.x = Rand_CenteredFloat(10.0f) + actor->world.pos.x;
     pos.y = (Rand_ZeroOne() * 10.0f) + actor->world.pos.y + yKanbanOffset;
@@ -47,7 +50,6 @@ static void Sign_RandomizerDraw(Actor* actor, Color_RGBA8* primColor, Color_RGBA
 }
 
 void Sign_RandomizerDrawSetup(void* actor) {
-    GetItemCategory getItemCategory;
     Actor* signActor = (Actor*)actor;
 
     // If not a randomized item or too far, don't draw
@@ -60,10 +62,6 @@ void Sign_RandomizerDrawSetup(void* actor) {
 
     int isNotCMC = !cmc || (requiresStoneAgony && !CHECK_QUEST_ITEM(QUEST_STONE_OF_AGONY));
 
-    Color_RGBA8 primColor;
-    Color_RGBA8 secColor;
-    Color_RGBA8 envColor;
-
     const auto signIdentity = ObjectExtension::GetInstance().Get<CheckIdentity>(signActor);
     if (signIdentity == nullptr) {
         return;
@@ -71,14 +69,11 @@ void Sign_RandomizerDrawSetup(void* actor) {
 
     GetItemEntry signItem =
         Rando::Context::GetInstance()->GetFinalGIEntry(signIdentity->randomizerCheck, true, GI_NONE);
-    getItemCategory = Randomizer_AdjustItemCategory(signItem);
+    GetItemCategory getItemCategory = isNotCMC ? ITEM_CATEGORY_MAJOR : Randomizer_AdjustItemCategory(signItem);
 
-    if (isNotCMC) {
-        getItemCategory = ITEM_CATEGORY_MAJOR;
-    }
-    primColor = Randomizer_GetParticleCMCColor(getItemCategory, COLOR_PRIMARY);
-    secColor = Randomizer_GetParticleCMCColor(getItemCategory, COLOR_SECONDARY);
-    envColor = Randomizer_GetParticleCMCColor(getItemCategory, COLOR_FLARE);
+    Color_RGBA8 primColor = Randomizer_GetParticleCMCColor(getItemCategory, COLOR_PRIMARY);
+    Color_RGBA8 secColor = Randomizer_GetParticleCMCColor(getItemCategory, COLOR_SECONDARY);
+    Color_RGBA8 envColor = Randomizer_GetParticleCMCColor(getItemCategory, COLOR_FLARE);
     Sign_RandomizerDraw(signActor, &primColor, &secColor, &envColor);
 }
 
@@ -98,6 +93,78 @@ void Sign_RoyalTombSpawnCollectible(int16_t flagType, int16_t flag) {
     }
 }
 
+static CheckIdentity IdentifySign(s32 sceneNum, s32 posX, s32 posZ, s32 id) {
+    CheckIdentity signIdentity;
+    uint32_t signSceneNum = sceneNum;
+    Rando::Location* location = nullptr;
+
+    // align child/adult and day/night signs
+    if (sceneNum == SCENE_KAKARIKO_VILLAGE && LINK_IS_ADULT && posX == 1165 && posZ == 1545) {
+        posZ = 1550;
+    } else if (sceneNum == SCENE_GRAVEYARD && LINK_IS_ADULT) {
+        if (id == ACTOR_EN_WONDER_TALK2 && ((posX == -807 && posZ == 266) || (posX == -806 && posZ == 266))) {
+            posX = -805;
+        } else if (id == ACTOR_EN_WONDER_TALK) {
+            if ((posX == 634 && posZ == 260) || (posX == 638 && posZ == 260)) {
+                posX = 654;
+                posZ = 258;
+            } else if ((posX == 634 && posZ == -100) || (posX == 638 && posZ == -100)) {
+                posX = 654;
+                posZ = -102;
+            } else if ((posX == 753 && posZ == 85) || (posX == 758 && posZ == 85)) {
+                posX = 752;
+            }
+        }
+    } else if (sceneNum == SCENE_GRAVEYARD && LINK_IS_CHILD) {
+        if (id == ACTOR_EN_WONDER_TALK2 && posX == -805 && posZ == 264) {
+            posZ = 266;
+        } else if (id == ACTOR_EN_WONDER_TALK) {
+            if (posX == 630 && posZ == 260) {
+                posX = 654;
+                posZ = 258;
+            } else if (posX == 630 && posZ == -100) {
+                posX = 654;
+                posZ = -102;
+            } else if (posX == 758 && posZ == 85) {
+                posX = 752;
+            }
+        }
+    } else if (sceneNum == SCENE_ZORAS_RIVER && LINK_IS_ADULT && posX == 4097 && posZ == -1399) {
+        posX = 4096;
+        posZ = -1401;
+    }
+
+    signIdentity.randomizerInf = RAND_INF_MAX;
+    signIdentity.randomizerCheck = RC_UNKNOWN_CHECK;
+
+    s32 actorParams = TWO_ACTOR_PARAMS(posX, posZ);
+
+    switch (id) {
+        case ACTOR_EN_KANBAN:
+            location =
+                OTRGlobals::Instance->gRandomizer->GetCheckObjectFromActor(ACTOR_EN_KANBAN, signSceneNum, actorParams);
+            break;
+        case ACTOR_EN_A_OBJ:
+            location =
+                OTRGlobals::Instance->gRandomizer->GetCheckObjectFromActor(ACTOR_EN_A_OBJ, signSceneNum, actorParams);
+            break;
+        case ACTOR_EN_WONDER_TALK2:
+            location = OTRGlobals::Instance->gRandomizer->GetCheckObjectFromActor(ACTOR_EN_WONDER_TALK2, signSceneNum,
+                                                                                  actorParams);
+            break;
+        case ACTOR_EN_WONDER_TALK:
+            location = OTRGlobals::Instance->gRandomizer->GetCheckObjectFromActor(ACTOR_EN_WONDER_TALK, signSceneNum,
+                                                                                  actorParams);
+            break;
+        default:
+            return signIdentity;
+    }
+
+    IdentifyCheck(&signIdentity, location);
+
+    return signIdentity;
+}
+
 void RegisterShuffleSigns() {
     bool shouldRegister = IS_RANDO && Rando::Context::GetInstance()->GetOption(RSK_SHUFFLE_SIGNS).Get();
 
@@ -105,8 +172,8 @@ void RegisterShuffleSigns() {
         Actor* actor = static_cast<Actor*>(actorRef);
         EnKanban* signActor = static_cast<EnKanban*>(actorRef);
 
-        auto signIdentity = OTRGlobals::Instance->gRandomizer->IdentifySign(
-            gPlayState->sceneNum, (s16)actor->world.pos.x, (s16)actor->world.pos.z, actor->id);
+        auto signIdentity =
+            IdentifySign(gPlayState->sceneNum, (s16)actor->world.pos.x, (s16)actor->world.pos.z, actor->id);
         ObjectExtension::GetInstance().Set<CheckIdentity>(actor, std::move(signIdentity));
     });
 
@@ -114,8 +181,8 @@ void RegisterShuffleSigns() {
         Actor* actor = static_cast<Actor*>(actorRef);
         EnAObj* signActor = static_cast<EnAObj*>(actorRef);
 
-        auto signIdentity = OTRGlobals::Instance->gRandomizer->IdentifySign(
-            gPlayState->sceneNum, (s16)actor->world.pos.x, (s16)actor->world.pos.z, actor->id);
+        auto signIdentity =
+            IdentifySign(gPlayState->sceneNum, (s16)actor->world.pos.x, (s16)actor->world.pos.z, actor->id);
         ObjectExtension::GetInstance().Set<CheckIdentity>(actor, std::move(signIdentity));
     });
 
@@ -123,8 +190,8 @@ void RegisterShuffleSigns() {
         Actor* actor = static_cast<Actor*>(actorRef);
         EnWonderTalk* signActor = static_cast<EnWonderTalk*>(actorRef);
 
-        auto signIdentity = OTRGlobals::Instance->gRandomizer->IdentifySign(
-            gPlayState->sceneNum, (s16)actor->world.pos.x, (s16)actor->world.pos.z, actor->id);
+        auto signIdentity =
+            IdentifySign(gPlayState->sceneNum, (s16)actor->world.pos.x, (s16)actor->world.pos.z, actor->id);
         ObjectExtension::GetInstance().Set<CheckIdentity>(actor, std::move(signIdentity));
     });
 
@@ -132,8 +199,8 @@ void RegisterShuffleSigns() {
         Actor* actor = static_cast<Actor*>(actorRef);
         EnWonderTalk2* signActor = static_cast<EnWonderTalk2*>(actorRef);
 
-        auto signIdentity = OTRGlobals::Instance->gRandomizer->IdentifySign(
-            gPlayState->sceneNum, (s16)actor->world.pos.x, (s16)actor->world.pos.z, actor->id);
+        auto signIdentity =
+            IdentifySign(gPlayState->sceneNum, (s16)actor->world.pos.x, (s16)actor->world.pos.z, actor->id);
         ObjectExtension::GetInstance().Set<CheckIdentity>(actor, std::move(signIdentity));
     });
 
@@ -241,6 +308,8 @@ locationTable[RC_LH_NORTH_EXIT_ARROW_SIGN]                              = Locati
 locationTable[RC_LH_FISHING_SIGN]                                       = Location::Sign(RC_LH_FISHING_SIGN,                                        RCQUEST_BOTH,       RCAREA_LAKE_HYLIA,              SCENE_LAKE_HYLIA,               TWO_ACTOR_PARAMS(1341, 3779),       "Fishing Sign",                                     RHT_SIGN_LAKE_HYLIA,            ACTOR_EN_WONDER_TALK2,      SpoilerCollectionCheck::RandomizerInf(RAND_INF_LH_FISHING_SIGN));
 locationTable[RC_LH_ISLAND_PEDESTAL]                                    = Location::Sign(RC_LH_ISLAND_PEDESTAL,                                     RCQUEST_BOTH,       RCAREA_LAKE_HYLIA,              SCENE_LAKE_HYLIA,               TWO_ACTOR_PARAMS(-491, 7259),       "Island Pedestal",                                  RHT_SIGN_LAKE_HYLIA,            ACTOR_EN_WONDER_TALK2,      SpoilerCollectionCheck::RandomizerInf(RAND_INF_LH_ISLAND_PEDESTAL));
 locationTable[RC_LH_FISHING_POND_RECTANGLE_SIGN]                        = Location::Sign(RC_LH_FISHING_POND_RECTANGLE_SIGN,                         RCQUEST_BOTH,       RCAREA_LAKE_HYLIA,              SCENE_FISHING_POND,             TWO_ACTOR_PARAMS(53, 982),          "Fishing Pond Rectangle Sign",                      RHT_SIGN_FISHING_POND,          ACTOR_EN_KANBAN,            SpoilerCollectionCheck::RandomizerInf(RAND_INF_LH_FISHING_POND_RECTANGLE_SIGN));
+locationTable[RC_LH_WATER_SWITCH_SIGN]                                  = Location::Sign(RC_LH_WATER_SWITCH_SIGN,                                   RCQUEST_BOTH,       RCAREA_LAKE_HYLIA,              SCENE_LAKE_HYLIA,               TWO_ACTOR_PARAMS(-970, 6954),       "Water Switch Rectangle Sign",                                RHT_SIGN_LAKE_HYLIA,            ACTOR_EN_KANBAN,            SpoilerCollectionCheck::RandomizerInf(RAND_INF_LH_WATER_SWITCH_SIGN));
+locationTable[RC_LH_FISHING_ISLAND_WATER_SWITCH_SIGN]                   = Location::Sign(RC_LH_FISHING_ISLAND_WATER_SWITCH_SIGN,                    RCQUEST_BOTH,       RCAREA_LAKE_HYLIA,              SCENE_LAKE_HYLIA,               TWO_ACTOR_PARAMS(1320, 3951),       "Fishing Island Water Switch Rectangle Sign",                 RHT_SIGN_LAKE_HYLIA,            ACTOR_EN_KANBAN,            SpoilerCollectionCheck::RandomizerInf(RAND_INF_LH_FISHING_ISLAND_WATER_SWITCH_SIGN));
 locationTable[RC_GV_BRIDGE_RECTANGLE_SIGN]                              = Location::Sign(RC_GV_BRIDGE_RECTANGLE_SIGN,                               RCQUEST_BOTH,       RCAREA_GERUDO_VALLEY,           SCENE_GERUDO_VALLEY,            TWO_ACTOR_PARAMS(359, 254),         "Bridge Rectangle Sign",                            RHT_SIGN_GERUDO_VALLEY,         ACTOR_EN_KANBAN,            SpoilerCollectionCheck::RandomizerInf(RAND_INF_GV_BRIDGE_RECTANGLE_SIGN));
 locationTable[RC_GV_EAST_EXIT_ARROW_SIGN]                               = Location::Sign(RC_GV_EAST_EXIT_ARROW_SIGN,                                RCQUEST_BOTH,       RCAREA_GERUDO_VALLEY,           SCENE_GERUDO_VALLEY,            TWO_ACTOR_PARAMS(2778, 593),        "East Exit Arrow Sign",                             RHT_SIGN_GERUDO_VALLEY,         ACTOR_EN_A_OBJ,             SpoilerCollectionCheck::RandomizerInf(RAND_INF_GV_EAST_EXIT_ARROW_SIGN));
 locationTable[RC_GF_EAST_EXIT_ARROW_SIGN]                               = Location::Sign(RC_GF_EAST_EXIT_ARROW_SIGN,                                RCQUEST_BOTH,       RCAREA_GERUDO_FORTRESS,         SCENE_GERUDOS_FORTRESS,         TWO_ACTOR_PARAMS(-730, -70),        "East Exit Arrow Sign",                             RHT_SIGN_GERUDO_FORTRESS,       ACTOR_EN_A_OBJ,             SpoilerCollectionCheck::RandomizerInf(RAND_INF_GF_EAST_EXIT_ARROW_SIGN));
@@ -253,11 +322,13 @@ locationTable[RC_HW_POE_ALTAR]                                          = Locati
 locationTable[RC_DODONGOS_CAVERN_TOP_FLOOR_PEDESTAL]                    = Location::Sign(RC_DODONGOS_CAVERN_TOP_FLOOR_PEDESTAL,                     RCQUEST_BOTH,       RCAREA_DODONGOS_CAVERN,         SCENE_DODONGOS_CAVERN,          TWO_ACTOR_PARAMS(578, -929),        "Top Floor Pedestal",                               RHT_SIGN_DODONGOS_CAVERN,       ACTOR_EN_WONDER_TALK2,      SpoilerCollectionCheck::RandomizerInf(RAND_INF_DODONGOS_CAVERN_TOP_FLOOR_PEDESTAL));
 locationTable[RC_SHADOW_TEMPLE_TRUTHSPINNER_RECTANGLE_SIGN]             = Location::Sign(RC_SHADOW_TEMPLE_TRUTHSPINNER_RECTANGLE_SIGN,              RCQUEST_VANILLA,    RCAREA_SHADOW_TEMPLE,           SCENE_SHADOW_TEMPLE,            TWO_ACTOR_PARAMS(910, -192),        "Truthspinner Rectangle Sign",                      RHT_SIGN_SHADOW_TEMPLE,         ACTOR_EN_KANBAN,            SpoilerCollectionCheck::RandomizerInf(RAND_INF_SHADOW_TEMPLE_TRUTHSPINNER_RECTANGLE_SIGN));
 locationTable[RC_SHADOW_TEMPLE_FALLING_SPIKES_RECTANGLE_SIGN]           = Location::Sign(RC_SHADOW_TEMPLE_FALLING_SPIKES_RECTANGLE_SIGN,            RCQUEST_BOTH,       RCAREA_SHADOW_TEMPLE,           SCENE_SHADOW_TEMPLE,            TWO_ACTOR_PARAMS(1132, 4103),       "Falling Spikes Rectangle Sign",                    RHT_SIGN_SHADOW_TEMPLE,         ACTOR_EN_KANBAN,            SpoilerCollectionCheck::RandomizerInf(RAND_INF_SHADOW_TEMPLE_FALLING_SPIKES_RECTANGLE_SIGN));
+locationTable[RC_SPIRIT_TEMPLE_LEFT_SNAKE_STATUE]                       = Location::Sign(RC_SPIRIT_TEMPLE_LEFT_SNAKE_STATUE,                        RCQUEST_BOTH,       RCAREA_SPIRIT_TEMPLE,           SCENE_SPIRIT_TEMPLE,            TWO_ACTOR_PARAMS(-282, 312),        "Left Snake Statue",                                RHT_SIGN_SPIRIT_TEMPLE,         ACTOR_EN_WONDER_TALK2,      SpoilerCollectionCheck::RandomizerInf(RAND_INF_SPIRIT_TEMPLE_LEFT_SNAKE_STATUE));
+locationTable[RC_SPIRIT_TEMPLE_RIGHT_SNAKE_STATUE]                      = Location::Sign(RC_SPIRIT_TEMPLE_RIGHT_SNAKE_STATUE,                       RCQUEST_BOTH,       RCAREA_SPIRIT_TEMPLE,           SCENE_SPIRIT_TEMPLE,            TWO_ACTOR_PARAMS(302, 310),         "Right Snake Statue",                               RHT_SIGN_SPIRIT_TEMPLE,         ACTOR_EN_WONDER_TALK2,      SpoilerCollectionCheck::RandomizerInf(RAND_INF_SPIRIT_TEMPLE_RIGHT_SNAKE_STATUE));
 // MQ Dungeon Signs
 locationTable[RC_SHADOW_TEMPLE_MQ_LOWER_PIT_RECTANGLE_SIGN]             = Location::Sign(RC_SHADOW_TEMPLE_MQ_LOWER_PIT_RECTANGLE_SIGN,              RCQUEST_MQ,         RCAREA_SHADOW_TEMPLE,           SCENE_SHADOW_TEMPLE,            TWO_ACTOR_PARAMS(2893, 2705),       "Lower Pit Rectangle Sign",                         RHT_SIGN_SHADOW_TEMPLE,         ACTOR_EN_KANBAN,            SpoilerCollectionCheck::RandomizerInf(RAND_INF_SHADOW_TEMPLE_MQ_LOWER_PIT_RECTANGLE_SIGN));
 
     // clang-format on
 }
 
-static RegisterShipInitFunc initFunc(RegisterShuffleSigns, { "IS_RANDO" });
+static RegisterShipInitFunc initFunc_ShuffleSigns(RegisterShuffleSigns, { "IS_RANDO" });
 static RegisterShipInitFunc registerSignLocations(Rando::StaticData::RegisterSignLocations);

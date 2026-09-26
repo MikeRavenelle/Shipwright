@@ -1,11 +1,6 @@
 #pragma once
 
-#ifndef GameInteractor_h
-#define GameInteractor_h
-
-#include "libultraship/libultraship.h"
 #include "vanilla-behavior/GIVanillaBehavior.h"
-#include <z64.h>
 
 typedef enum {
     /* 0x00 */ GI_LINK_SIZE_NORMAL,
@@ -52,19 +47,12 @@ typedef enum {
     /* 0x08 */ GI_COLOR_BLACK,
 } GIColors;
 
-typedef enum {
-    /*      */ GI_TP_DEST_LINKSHOUSE = ENTR_LINKS_HOUSE_CHILD_SPAWN,
-    /*      */ GI_TP_DEST_MINUET = ENTR_SACRED_FOREST_MEADOW_WARP_PAD,
-    /*      */ GI_TP_DEST_BOLERO = ENTR_DEATH_MOUNTAIN_CRATER_WARP_PAD,
-    /*      */ GI_TP_DEST_SERENADE = ENTR_LAKE_HYLIA_WARP_PAD,
-    /*      */ GI_TP_DEST_REQUIEM = ENTR_DESERT_COLOSSUS_WARP_PAD,
-    /*      */ GI_TP_DEST_NOCTURNE = ENTR_GRAVEYARD_WARP_PAD,
-    /*      */ GI_TP_DEST_PRELUDE = ENTR_TEMPLE_OF_TIME_WARP_PAD,
-} GITeleportDestinations;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+#include <z64actor.h>
+struct Player;
+struct PlayState;
 uint8_t GameInteractor_NoUIActive();
 GILinkSize GameInteractor_GetLinkSize();
 void GameInteractor_SetLinkSize(GILinkSize size);
@@ -84,19 +72,22 @@ uint8_t GameInteractor_GetRandomWindActive();
 uint8_t GameInteractor_GetRandomBonksActive();
 uint8_t GameInteractor_GetSlipperyFloorActive();
 uint8_t GameInteractor_SecondCollisionUpdate();
-void GameInteractor_SetTriforceHuntPieceGiven(uint8_t state);
-void GameInteractor_SetTriforceHuntCreditsWarpActive(uint8_t state);
+void GameInteractor_SetTriforceHuntPieceGiven(bool state);
+void GameInteractor_SetTriforceHuntCreditsWarpActive(bool state);
 #ifdef __cplusplus
 }
 #endif
 
 #ifdef __cplusplus
 #include <stdarg.h>
+#include <cstdint>
 #include <map>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 #include <functional>
 #include <cstring>
+#include <string>
 
 #include <version>
 #ifdef __cpp_lib_source_location
@@ -213,8 +204,8 @@ class GameInteractor {
         static uint8_t RandomBonksActive;
         static uint8_t SlipperyFloorActive;
         static uint8_t SecondCollisionUpdate;
-        static uint8_t TriforceHuntPieceGiven;
-        static uint8_t TriforceHuntCreditsWarpActive;
+        static bool TriforceHuntPieceGiven;
+        static bool TriforceHuntCreditsWarpActive;
 
         static void SetPacifistMode(bool active);
     };
@@ -540,6 +531,7 @@ class GameInteractor {
     // Helpers
     static bool IsSaveLoaded(bool allowDbgSave = false);
     static bool IsGameplayPaused();
+    static bool IsPlayerInControl();
     static bool CanSpawnActor();
     static bool CanAddOrTakeAmmo(int16_t amount, int16_t item);
 
@@ -585,4 +577,3 @@ class GameInteractor {
 #undef GET_CURRENT_REGISTERING_INFO
 
 #endif /* __cplusplus */
-#endif /* GameInteractor_h */

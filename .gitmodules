@@ -1,9 +1,8 @@
 [submodule "libultraship"]
 	path = libultraship
 	url = https://github.com/mikeravenelle/libultraship.git
-[submodule "ZAPDTR"]
-	path = ZAPDTR
-	url = https://github.com/harbourmasters/ZAPDTR
-[submodule "OTRExporter"]
-	path = OTRExporter
-	url = https://github.com/harbourmasters/OTRExporter
+	branch = tvos
+[submodule "torch"]
+	path = torch
+	url = https://github.com/HarbourMasters/Torch.git
+	branch = main

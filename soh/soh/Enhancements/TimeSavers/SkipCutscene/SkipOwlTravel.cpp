@@ -1,10 +1,14 @@
+#include <libultraship/bridge/consolevariablebridge.h>
+
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/randomizer/randomizer_entrance.h"
 #include "soh/ShipInit.hpp"
 #include <cassert>
 
 extern "C" {
+#include "z64.h"
 #include "z64save.h"
+#include "z64scene.h"
 extern PlayState* gPlayState;
 extern SaveContext gSaveContext;
 
